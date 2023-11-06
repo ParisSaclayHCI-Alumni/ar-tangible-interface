@@ -1,5 +1,5 @@
 const entriesMap = {
-  hand: './src/handExperiment/index',
+  hand: './src/HandTracking/index',
   object: './src/ObjectTracking/index'
 }
 
