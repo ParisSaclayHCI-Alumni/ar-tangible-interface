@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import url('https://fonts.googleapis.com/css?family=Inter');
+
+
+body {
+    background: #1E1E1E;
+    display: flex;
+    align-items: center;
+    justify-content: start;
+  }
+
+.header {
+    display: flex;
+    padding-top: 50px;
+    padding-bottom: 50px;
+    padding-left: 5%;
+    width: 1000px;
+}
+
+.player-container {
+    padding-top: 10%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: start;
+    width: 300px;
+    height: 50px;
+}
+
+.player-img {
+    position: absolute;
+    border-radius: 50%;
+    border: solid 5px #1E1E1E;
+    width: 120px;
+    background-color: #D9D9D9;
+}
+
+.player {
+    margin: 70px;
+    padding-right: 20%;
+    box-sizing: border-box;
+    width: 220px;
+    height: 60px;
+    flex-shrink: 0;
+    color: #000;
+    font-family: 'Inter' , sans-serif;
+    font-size: 30px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 60px;
+    text-align: end;
+    border-radius: 79px;
+    background: #D9D9D9;
+}
+
+.profile {
+    margin-left: 10%;
+    margin-right: 10%;
+    background-color: #D9D9D9;
+    width: 150px;
+    height: 150px;
+    max-height: 150px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-img {
+    max-height: 80%;
+}
+
+.star-img {
+    position: absolute;
+    width: 80px;
+}
+
+.score-bar {
+    margin-top: 15px;
+    margin-left: 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    align-items: start;
+    width: 300px;
+    height: 40px;
+    border-radius: 14px;
+    background-color: #D9D9D9;
+}
+
+.score {
+    border-right: 6px #1E1E1E solid;
+    background: #CD5715;    
+    height: 40px;
+}
+
+.canvas-container {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 5%;
+}
+
+.video {
+    visibility: hidden;
+    position: absolute;
+  }

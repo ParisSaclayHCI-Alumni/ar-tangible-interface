@@ -26,6 +26,10 @@ module.exports = {
             presets: ['@babel/preset-env', '@babel/preset-typescript']
           }
         }
+      },
+      {
+        test: /\.(png|jpe?g|gif|svg)$/i,
+        loader: 'file-loader'
       }
     ]
   },
@@ -50,11 +54,11 @@ module.exports = {
   },
   plugins:[
     ...getHtmlWebpackPlugins({isDev: true}),
-    // new CopyPlugin({
-    //   patterns: [{
-    //     from: './assets',
-    //     to: './assets'
-    //   }]
-    // })
+    new CopyPlugin({
+      patterns: [{
+        from: './assets',
+        to: './assets'
+      }]
+    })
   ]
 }
