@@ -16,7 +16,6 @@ function App() {
       const mobile = isMobile;
       const vid = await setupCamera(mobile);
       setVid(vid);
-      // console.log(vid.play());
       vid.play();
     }
 

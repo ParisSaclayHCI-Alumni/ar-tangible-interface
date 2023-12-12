@@ -4,9 +4,9 @@ import { MediaPipeHandsTfjsModelConfig } from '@tensorflow-models/hand-pose-dete
 import '@tensorflow/tfjs-core';
 // Register WebGL backend.
 import '@tensorflow/tfjs-backend-webgl';
+import { TsWorker } from './worker';
 
-
-export class HandWorker {
+export class HandWorker extends TsWorker {
 
   private detector? : any;
 
@@ -30,6 +30,12 @@ export class HandWorker {
     if(this.detector === undefined) return null;
     const predictions = await this.detector.estimateHands(imageData);
     return predictions
+  }
+  public getWorkerInfo() {
+    return {
+        name: 'HandPose',
+        ready: this.ready()
+    }
   }
 }
 

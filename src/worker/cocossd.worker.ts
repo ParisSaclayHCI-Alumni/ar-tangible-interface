@@ -5,9 +5,10 @@ import '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-webgl';
 // Register CPU backend
 import '@tensorflow/tfjs-backend-cpu';
+import { TsWorker } from './worker';
 
 
-export class CocoSsdWorker {
+export class CocoSsdWorker extends TsWorker {
 
   private model? : any;
 
@@ -27,6 +28,13 @@ export class CocoSsdWorker {
     if(this.model === undefined) return null;
     const predictions = await this.model.detect(imageData);
     return predictions
+  }
+
+  public getWorkerInfo() {
+    return {
+        name: 'CocoSsd',
+        ready: this.ready()
+    }
   }
 }
 

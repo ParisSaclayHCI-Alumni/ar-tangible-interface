@@ -1,26 +1,24 @@
 import React, { useRef, useEffect } from 'react';
 import { getImageFromVideo } from '../utils';
 import * as Comlink from 'comlink'
-import { HandWorker } from '../worker/handpose.worker';
-import { QRScanWorker } from '../worker/qrscan.worker';
+import { TsWorker } from 'src/worker/worker';
 
 type CanvasProps = {
   video: HTMLVideoElement,
   draw: Function,
-  worker: Comlink.Remote<HandWorker>,
-  qrWorker: Comlink.Remote<QRScanWorker>
+  workers: Comlink.Remote<TsWorker>[],
 }
 
 const Canvas = (props: CanvasProps) => {
 
-  const { video, draw, worker, qrWorker} = props;
+  const { video, draw, workers} = props;
 
   const canvasRef = useRef(null);
 
   useEffect(() => {
 
     (async () => {
-      await worker.init();
+        for (let worker of workers) await worker.init();
     })();
 
   }, [])
@@ -34,29 +32,28 @@ const Canvas = (props: CanvasProps) => {
 
     let frameCount = 0;
     let animationFrameId = -1;
-    let res = undefined;
-    let code = undefined;
+    let res = {};
     
     //Our draw came here
     const render = async () => {
       frameCount++;
       const imageData = getImageFromVideo(video);
-      const ready = await worker.ready();
-      if(ready) {
-        res = await worker.estimate(imageData);
-        // code = await qrWorker.scan(imageData);
-        // console.log(code)
+
+      for (let worker of workers) {
+        await worker.ready();
+        const { name } = await worker.getWorkerInfo();
+        res[name] = await worker.estimate(imageData);
       }
-      draw(context, imageData, res, frameCount, code);
+      draw(context, imageData, res, frameCount);
       
-      animationFrameId = window.requestAnimationFrame(render)
+      animationFrameId = window.requestAnimationFrame(render);
     }
     render()
     
     return () => {
-      window.cancelAnimationFrame(animationFrameId)
+      window.cancelAnimationFrame(animationFrameId);
     }
-  }, [draw, worker, video])
+  }, [draw, workers, video])
   
   return <canvas ref={canvasRef} />
 }

@@ -1,18 +1,18 @@
 
 import React, { useEffect, useState }from 'react';
-import Canvas from './QrCanvas';
+import Canvas from './WorkerCanvas';
 import { isMobile, setupCamera } from '../utils';
 import { CocoSsdWorker } from 'src/worker/cocossd.worker';
 import { cocoSsdPrediction } from 'src/types';
 import { QRScanWorker } from 'src/worker/qrscan.worker';
+import { HandWorker } from '../worker/handpose.worker';
 import { QRCode } from 'jsqr';
 
 import * as tags from './classtags.json';
 import * as Comlink from 'comlink';
-import boxImg from '../../assets/sample.png';
-import userProfile from '../../assets/user-profile.svg';
-import star from '../../assets/star.svg';
 import './App.css';
+import PlayerHeader from './Header';
+import { EcoObject, Rect, checkOverlap } from './util';
 
 function App() {
 
@@ -24,7 +24,16 @@ function App() {
     new Worker(new URL(`../worker/qrscan.worker.ts`, import.meta.url))
   );
 
+  const handWorker : Comlink.Remote<HandWorker> = Comlink.wrap(
+    new Worker(new URL(`../worker/handpose.worker.ts`, import.meta.url))
+  );
+
   const [video, setVideo] = useState<HTMLVideoElement>(null);
+  const [ecoBox, setEcoBox] = useState<Rect>(null);
+  const [handKeypoints, setHandKeypoints] = useState<any[]>([]);
+  const [cocoDetections, setCocoDetections] = useState<cocoSsdPrediction[]>([]);
+  const [stored, setStored] = useState<EcoObject[]>([]);
+  const [storeTags, setStoreTags] = useState<string[]>(['e-waste', 'recyclable']);
 
   useEffect(() => {
     async function initCamera() {
@@ -38,13 +47,85 @@ function App() {
 
   }, [])
 
+  const drawHands = (ctx : CanvasRenderingContext2D, hands : any[]) => {
+    if(hands) setHandKeypoints(hands);
+    for (let hand of handKeypoints) {
+      const {keypoints} = hand;
+      if(keypoints) {
+        // thumb finger tip
+        ctx.arc(keypoints[4].x, keypoints[4].y, 10, 0, 2*Math.PI)
+
+        // index finger tip
+        ctx.arc(keypoints[8].x, keypoints[8].y, 10, 0, 2*Math.PI)    
+        ctx.stroke();    
+      }
+    }
+  }
+
+  const drawEcoBox = (ctx : CanvasRenderingContext2D, code : QRCode) => {
+    if(!code) return;
+    const { location } = code;
+    const { topLeftCorner, bottomLeftCorner, bottomRightCorner } = location;
+
+    const width = bottomLeftCorner.x - topLeftCorner.x;
+    const height = bottomRightCorner.y - bottomLeftCorner.y;
+    setEcoBox({
+      x: topLeftCorner.x + width / 2,
+      y: topLeftCorner.y + height / 2,
+      width,
+      height,
+    })
+
+    ctx.rect(topLeftCorner.x, topLeftCorner.y, width, height);
+    ctx.stroke();
+  }
+
+  const drawCocoObj = (ctx : CanvasRenderingContext2D, detections : cocoSsdPrediction[], frameCount: number) => {
+    if(detections) setCocoDetections(detections);
+    if(!ecoBox) return;
+    const { x, y } = ecoBox;
+    for (let detection of cocoDetections) {
+      const { bbox, class: name } = detection;
+      const objRect = {
+        x: bbox[0],
+        y: bbox[1],
+        width: bbox[2],
+        height: bbox[3],
+      }
+
+      if(bbox && tags[name] !== null) {
+        ctx.fillText(tags[name], bbox[0], bbox[1]);
+        ctx.rect(bbox[0], bbox[1], bbox[2], bbox[3]);
+        ctx.stroke();
+
+          if(bbox && tags[name] !== null) {
+            if(checkOverlap(ecoBox, objRect)) {
+              console.log(name);
+              if (storeTags.includes(tags[name])) {
+                ctx.fillText("✅", x, y);
+                setStored([...stored, {name, ecoTag: tags[name], score: 10}]);
+              } else ctx.fillText("❌", x, y);
+            }
+
+            for(let i = 0; i < 5; i++) {
+              const vx = Math.random() * 20 - 10;
+              const vy = Math.random() * 20 - 5;
+              ctx.fillText("🌟", x - 10 * i - vx, y - vy);
+              ctx.fillText("💎", x - 20 * i - vx, y - vy);
+            }
+          } else continue;
+
+      } else continue;
+    }
+  }
+
   const drawbbox = (
       ctx : CanvasRenderingContext2D, 
       imageData, 
-      results : cocoSsdPrediction[],
-      code?: QRCode 
+      results : any,
+      frameCount?: number,
     ) => {
-      ctx.clearRect(0, 0, imageData.width, imageData.height)
+      ctx.clearRect(0, 0, imageData.width, imageData.height);
       ctx.putImageData(imageData, 0, 0);
       ctx.strokeStyle = '#000000';
       ctx.fillStyle = '#FF0000';
@@ -52,54 +133,27 @@ function App() {
       if (!results) {
         return;
       }
-      for (let detection of results) {
-        const { bbox, class: name } = detection;
+      // console.log(results)
+      const detections = results['CocoSsd'] as cocoSsdPrediction[];
+      const code = results['QRScan'] as QRCode;
+      const hands = results['HandPose'];
 
-        if(bbox && tags[name] !== null) {
-          ctx.beginPath();
-          if(code) {
-            const { location } = code;
-            const { topLeftCorner } = location;
+      ctx.beginPath();
+      drawEcoBox(ctx, code);
+      drawCocoObj(ctx, detections, frameCount);
+      drawHands(ctx, hands);
 
-            ctx.fillText("📦🧙‍♀️", topLeftCorner.x, topLeftCorner.y);
-          }
-
-          ctx.rect(bbox[0], bbox[1], bbox[2], bbox[3]);
-          ctx.stroke();
-          ctx.fillText(name, bbox[0], bbox[1] - 10);
-          if(tags[name]) {
-            ctx.fillText(tags[name], bbox[0], bbox[1] - 30);
-          }
-          ctx.closePath();
-        }
-      }
-
+      ctx.closePath();
+        
   }
+
+  
   
   return (
     <div>
-      <div className="header">
-        <div className="player-container">
-          {/* <div className="player-img"> */}
-              <img src={userProfile} className="player-img"></img>
-            {/* </div> */}
-          <div className="player">
-            Radu
-          </div>
-        </div>
-        <div className="profile">
-          <img className="profile-img" src={boxImg}></img>
-        </div>
-        <div className="player-container">
-          <img src={star} className="star-img"></img>
-          <div className="score-bar">
-            <div className="score" style={{width: "100px"}}></div>
-          </div>
-        </div>
-
-      </div>
-      <div className="video-container">
-        {video ? <Canvas draw={drawbbox} video={video} worker={cocoWorker} qrWorker={qrWorker}/> : null }
+      <PlayerHeader score={20}/>
+      <div className="canvas-container">
+        {video ? <Canvas draw={drawbbox} video={video} workers={[cocoWorker, qrWorker, handWorker]}/> : null }
       </div>
     </div>
     )
