@@ -12,7 +12,10 @@ import * as tags from './classtags.json';
 import * as Comlink from 'comlink';
 import './App.css';
 import PlayerHeader from './Header';
-import { EcoObject, Rect, checkOverlap } from './util';
+import { EcoObject, Rect, checkInsideRadius, checkOverlap } from './util';
+import { Particle, Particles } from './Particle';
+import switchImg from '../../assets/switch.png';
+import particleImg from '../../assets/particle.png';
 
 function App() {
 
@@ -34,6 +37,9 @@ function App() {
   const [cocoDetections, setCocoDetections] = useState<cocoSsdPrediction[]>([]);
   const [stored, setStored] = useState<EcoObject[]>([]);
   const [storeTags, setStoreTags] = useState<string[]>(['e-waste', 'recyclable']);
+  const particles = new Particles();
+  const [switchPos, setSwitchPos] = useState<{x: number, y: number}>(null);
+  const [showEcoBox, setShowEcoBox] = useState<boolean>(true);
 
   useEffect(() => {
     async function initCamera() {
@@ -57,7 +63,13 @@ function App() {
 
         // index finger tip
         ctx.arc(keypoints[8].x, keypoints[8].y, 10, 0, 2*Math.PI)    
-        ctx.stroke();    
+        ctx.stroke(); 
+        if(switchPos) {
+          if(checkInsideRadius(keypoints[4], switchPos, 20) 
+              && checkInsideRadius(keypoints[8], switchPos, 20)) {
+            setShowEcoBox(!showEcoBox);
+          }
+        }
       }
     }
   }
@@ -75,9 +87,35 @@ function App() {
       width,
       height,
     })
+    setSwitchPos({
+      x: topLeftCorner.x + width / 2,
+      y: topLeftCorner.y + height / 2,
+    })
+    for(let i = 0; i < 5; i++) {
+      const particle : Particle = {
+        x: ecoBox.x + Math.random() * 20 - 10,
+        y: ecoBox.y + Math.random() * 20 - 10,
+        vx: Math.random() * 20 - 10,
+        vy: Math.random() * 20 - 10,
+        life: 100,
+        size: 10,
+        update: () => {
+          particle.x += particle.vx;
+          particle.y += particle.vy;
+          particle.life -= 1;
+        },
+        draw: (ctx : CanvasRenderingContext2D) => {
+          ctx.fillText("🌟", particle.x, particle.y);
+          ctx.drawImage(particleImg, particle.x, particle.y, 10, 10);
+        }
+      };
+      particles.addParticle(particle);
+    }
 
     ctx.rect(topLeftCorner.x, topLeftCorner.y, width, height);
     ctx.stroke();
+    ctx.drawImage(switchImg, ecoBox.x, ecoBox.y, 50, 50);
+
   }
 
   const drawCocoObj = (ctx : CanvasRenderingContext2D, detections : cocoSsdPrediction[], frameCount: number) => {
@@ -106,20 +144,13 @@ function App() {
                 setStored([...stored, {name, ecoTag: tags[name], score: 10}]);
               } else ctx.fillText("❌", x, y);
             }
-
-            for(let i = 0; i < 5; i++) {
-              const vx = Math.random() * 20 - 10;
-              const vy = Math.random() * 20 - 5;
-              ctx.fillText("🌟", x - 10 * i - vx, y - vy);
-              ctx.fillText("💎", x - 20 * i - vx, y - vy);
-            }
           } else continue;
 
       } else continue;
     }
   }
 
-  const drawbbox = (
+  const draw = (
       ctx : CanvasRenderingContext2D, 
       imageData, 
       results : any,
@@ -144,16 +175,13 @@ function App() {
       drawHands(ctx, hands);
 
       ctx.closePath();
-        
   }
-
-  
   
   return (
     <div>
-      <PlayerHeader score={20}/>
+      <PlayerHeader score={stored.reduce((sum : number, cur : EcoObject) => sum += cur.score, 0)}/>
       <div className="canvas-container">
-        {video ? <Canvas draw={drawbbox} video={video} workers={[cocoWorker, qrWorker, handWorker]}/> : null }
+        {video ? <Canvas draw={draw} video={video} workers={[cocoWorker, qrWorker, handWorker]}/> : null }
       </div>
     </div>
     )
